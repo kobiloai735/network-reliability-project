@@ -14,6 +14,8 @@ Terminal Connectivity, עם הטרמינלים **T1=4, T2=10, T3=17**.
 
 ```
 part-a-cmc/
+├── assignment/
+│   └── project_part_a.pdf  # דף העבודה של חלק א'
 ├── cmc_reliability.py      # התוכנה: CMC + DSS + חישוב מדויק לאימות
 ├── results/
 │   └── run_output.txt      # פלט ההרצה (seed=2026)
