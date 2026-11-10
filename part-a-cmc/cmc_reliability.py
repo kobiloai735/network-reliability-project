@@ -10,7 +10,7 @@ Author: Kobi Loya
 """
 import random
 import math
-from itertools import product
+from collections import deque
 
 # ---------------------------------------------------------------------------
 # 1. The network (Figure 4.2 – the dodecahedron network)
@@ -110,19 +110,64 @@ def cmc_reliability(p, M, rng, edges=EDGES, n=N_NODES, terminals=TERMINALS):
 # 4. Exact reliability (for validation only) – frontier-based dynamic
 #    programming.  Returns N[k] = number of edge subsets with exactly k UP edges
 #    for which the terminals are connected.   R(p) = sum N[k] p^k (1-p)^(m-k)
+#
+#    Idea: process the edges one by one.  A vertex is on the "frontier" from its
+#    first edge until its last edge.  A state remembers only how the frontier
+#    vertices are grouped into components and which terminals each group holds.
+#    When a group leaves the frontier:
+#       holds all terminals  -> success (absorbing state)
+#       holds some terminals -> failure (branch discarded)
+#       holds no terminals   -> irrelevant, continue
 # ---------------------------------------------------------------------------
+def bfs_edge_order(edges, start):
+    """Reorder edges in BFS order from `start`.  The result does not depend on
+    the order, but a BFS order keeps the frontier small: for the dodecahedron
+    the peak number of states drops from ~739,000 to ~800."""
+    adj = {}
+    for i, (u, v) in enumerate(edges):
+        adj.setdefault(u, []).append(i)
+        adj.setdefault(v, []).append(i)
+    seen, order, queue, visited = set(), [], deque([start]), {start}
+    while queue:
+        x = queue.popleft()
+        for i in adj.get(x, []):
+            if i not in seen:
+                seen.add(i)
+                order.append(edges[i])
+            u, v = edges[i]
+            y = v if u == x else u
+            if y not in visited:
+                visited.add(y)
+                queue.append(y)
+    # edges not reachable from `start` (other connected components) keep their order
+    order += [e for i, e in enumerate(edges) if i not in seen]
+    return order
+
+
 def exact_counts(edges=EDGES, terminals=TERMINALS):
+    terminals = tuple(dict.fromkeys(terminals))      # ignore duplicate terminals
     m = len(edges)
-    tset = set(terminals)
-    full = (1 << len(terminals)) - 1
+    if len(terminals) == 1:                          # a single terminal is always "connected"
+        return [math.comb(m, k) for k in range(m + 1)]
+    edges = bfs_edge_order(edges, terminals[0])
+    full = (1 << len(terminals)) - 1                 # bitmask: all terminals
     tbit = {t: 1 << i for i, t in enumerate(terminals)}
     last_use = {}
     for i, (u, v) in enumerate(edges):
         last_use[u] = i
         last_use[v] = i
 
-    # state: (frontier tuple of (vertex, label) sorted, masks tuple per label) or 'OK'
+    def zero():
+        return [0] * (m + 1)
+
+    def add(table, key, vec, shift):
+        tgt = table.setdefault(key, zero())
+        for k, c in enumerate(vec):
+            if c:
+                tgt[k + shift] += c
+
     def normalize(assign, masks):
+        """Canonical state: frontier (vertex, label) pairs + terminal mask per label."""
         relabel, new_assign, new_masks = {}, [], []
         for vtx, lab in sorted(assign.items()):
             if lab not in relabel:
@@ -131,25 +176,14 @@ def exact_counts(edges=EDGES, terminals=TERMINALS):
             new_assign.append((vtx, relabel[lab]))
         return (tuple(new_assign), tuple(new_masks))
 
-    def zero():
-        return [0] * (m + 1)
-
     states = {((), ()): zero()}
     states[((), ())][0] = 1
+    success = zero()                 # counts of edge subsets already known to be UP
     for i, (u, v) in enumerate(edges):
+        # every subset that already succeeded stays UP whatever edge i does
+        success = [a + b for a, b in zip(success, [0] + success[:-1])]
         new_states = {}
-
-        def add(key, vec, shift):
-            tgt = new_states.setdefault(key, zero())
-            for k, c in enumerate(vec):
-                if c:
-                    tgt[k + shift] += c
-
         for key, vec in states.items():
-            if key == 'OK':
-                add('OK', vec, 0)
-                add('OK', vec, 1)
-                continue
             for up in (False, True):
                 assign = dict(key[0])
                 masks = list(key[1])
@@ -157,7 +191,7 @@ def exact_counts(edges=EDGES, terminals=TERMINALS):
                     if w not in assign:
                         assign[w] = len(masks)
                         masks.append(tbit.get(w, 0))
-                if up:
+                if up:                              # merge the two components
                     a, b = assign[u], assign[v]
                     if a != b:
                         masks[a] |= masks[b]
@@ -178,14 +212,17 @@ def exact_counts(edges=EDGES, terminals=TERMINALS):
                 if dead:
                     continue
                 if ok:
-                    add('OK', vec, int(up))
+                    for k, c in enumerate(vec):
+                        if c:
+                            success[k + int(up)] += c
                 else:
-                    add(normalize(assign, masks), vec, int(up))
+                    add(new_states, normalize(assign, masks), vec, int(up))
         states = new_states
-    return states.get('OK', zero())
+    return success
 
 
-def exact_reliability(p, counts, m=len(EDGES)):
+def exact_reliability(p, counts):
+    m = len(counts) - 1              # number of edges, inferred from the counts
     return sum(c * p ** k * (1 - p) ** (m - k) for k, c in enumerate(counts))
 
 
