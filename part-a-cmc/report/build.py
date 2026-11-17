@@ -45,7 +45,8 @@ table { border-collapse: collapse; margin: 8px auto; page-break-inside: avoid; }
 th, td { border: 1px solid #9aa8bb; padding: 3px 10px; text-align: center; direction: ltr; unicode-bidi: plaintext;}
 th { background: #e8eef6; }
 pre { direction: ltr; text-align: left; background:#f5f7fa; border:1px solid #dde3ea; padding: 8px 10px; font-size: 8.6pt; line-height: 1.35; page-break-inside: avoid;}
-code { font-family: 'DejaVu Sans Mono', Consolas, monospace; }
+code { font-family: 'DejaVu Sans Mono', Consolas, monospace; unicode-bidi: isolate; direction: ltr; white-space: nowrap; }
+pre code { white-space: pre; }
 math[display="block"] { direction: ltr; margin: 8px 0; font-size: 115%; }
 figure { text-align:center; margin: 10px 0; page-break-inside: avoid;}
 figure img { width: 46%; }
