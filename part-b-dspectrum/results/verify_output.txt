@@ -1,0 +1,8 @@
+1. anchor() == forward destruction on 20,000 random permutations: OK
+2. R from exact spectrum == brute-force R on 40 random graphs x 5 values of p: OK
+3. exact D-spectrum: nonzero for i = 3..25
+   R from exact spectrum vs exact R: max difference 1.8e-15
+   M= 1000: chi2 =  16.1, dof = 14 (95% critical value ~22.7)
+   M=10000: chi2 =  27.6, dof = 18 (95% critical value ~27.9)
+   M=50000: chi2 =  11.9, dof = 20 (95% critical value ~30.4)
+   exact R(p): 0.1: 0.000003  0.2: 0.000370  0.3: 0.006670  0.4: 0.048590  0.5: 0.192759  0.6: 0.471513  0.7: 0.774040  0.8: 0.948097  0.9: 0.995711  0.95: 0.999558  0.99: 0.999997
